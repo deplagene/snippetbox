@@ -4,20 +4,33 @@
 
 {{define "main"}}
 <form action='/snippet/create' method='POST'>
-    <div>
-        <label>Заголовок:</label>
-        <input type='text' name='title'>
-    </div>
-    <div>
-        <label>Содержание:</label>
-        <textarea name='content'></textarea>
-    </div>
-    <div>
-        <label>Срок хранения (в днях):</label>
-        <input type='number' name='expires' min='1' value='7'>
-    </div>
-    <div>
-        <input type='submit' value='Создать заметку'>
-    </div>
+    {{with .Form}}
+        <div>
+            <label>Заголовок:</label>
+            {{with .Errors.Title}}
+                <label class='error'>{{.}}</label>
+            {{end}}
+            <input type='text' name='title' value='{{.Title}}'>
+        </div>
+        <div>
+            <label>Текст:</label>
+            {{with .Errors.Content}}
+                <label class='error'>{{.}}</label>
+            {{end}}
+            <textarea name='content'>{{.Content}}</textarea>
+        </div>
+        <div>
+            <label>Срок:</label>
+            {{with .Errors.Expires}}
+                <label class='error'>{{.}}</label>
+            {{end}}
+            <input type='radio' name='expires' value='365' {{if (eq .Expires "365")}}checked{{end}}> Один Год
+            <input type='radio' name='expires' value='7' {{if (eq .Expires "7")}}checked{{end}}> Одна Неделя
+            <input type='radio' name='expires' value='1' {{if (eq .Expires "1")}}checked{{end}}> Один День
+        </div>
+        <div>
+            <input type='submit' value='Создать'>
+        </div>
+    {{end}}
 </form>
 {{end}}

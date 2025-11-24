@@ -13,8 +13,8 @@ import (
 )
 
 const create = `-- name: Create :one
-INSERT INTO snippets (title, content, created, expires)
-VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + CAST($3 AS INTERVAL))
+INSERT INTO snippets (snippet_id, title, content, created, expires)
+VALUES (gen_random_uuid(), $1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + CAST($3 AS INTERVAL))
 RETURNING snippet_id
 `
 

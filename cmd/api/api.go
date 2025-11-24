@@ -4,7 +4,6 @@ import (
 	"deplagene/snippetbox"
 	"deplagene/snippetbox/internal/database"
 	"deplagene/snippetbox/internal/snippets"
-	"html/template"
 	"io/fs"
 	"net/http"
 
@@ -25,29 +24,24 @@ func NewAPI(addr string, db *pgxpool.Pool) *API {
 }
 
 func (a *API) Run() error {
-	// Initialize dependencies
 	querier := database.New(a.db)
 	snippetSvc := snippets.NewService(querier)
-	snippetRouter := snippets.NewRouter(snippetSvc)
+	snippetRouter := snippets.NewHandler(snippetSvc)
 
-	// Set up router
 	router := gin.Default()
 
-	// Load templates
-	templates, err := template.ParseFS(snippetbox.UIFS, "ui/html/*.html")
+	templates, err := NewTemplateRenderer()
 	if err != nil {
 		return err
 	}
-	router.SetHTMLTemplate(templates)
+	router.HTMLRender = templates
 
-	// Serve static files
 	staticFS, err := fs.Sub(snippetbox.UIFS, "ui/static")
 	if err != nil {
 		return err
 	}
 	router.StaticFS("/static", http.FS(staticFS))
 
-	// Register routes
 	snippetRouter.RegisterRoutes(router.Group("/"))
 
 	return router.Run(a.Addr)

@@ -9,25 +9,22 @@ import (
 	"github.com/google/uuid"
 )
 
-// Router handles the snippet routes
-type Router struct {
+type Handler struct {
 	s *Service
 }
 
-// NewRouter creates a new snippet router
-func NewRouter(s *Service) *Router {
-	return &Router{s: s}
+func NewHandler(s *Service) *Handler {
+	return &Handler{s: s}
 }
 
-// RegisterRoutes registers the snippet routes with the Gin router
-func (r *Router) RegisterRoutes(rg *gin.RouterGroup) {
+func (r *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/", r.home)
-	rg.GET("/snippet/view", r.snippetView) // query param: ?id=...
+	rg.GET("/snippet", r.snippetView)
 	rg.GET("/snippet/create", r.snippetCreateForm)
 	rg.POST("/snippet/create", r.snippetCreate)
 }
 
-func (r *Router) home(c *gin.Context) {
+func (r *Handler) home(c *gin.Context) {
 	snippets, err := r.s.GetLatest()
 	if err != nil {
 		log.Printf("Error getting latest snippets: %v", err)
@@ -40,7 +37,7 @@ func (r *Router) home(c *gin.Context) {
 	})
 }
 
-func (r *Router) snippetView(c *gin.Context) {
+func (r *Handler) snippetView(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -50,9 +47,7 @@ func (r *Router) snippetView(c *gin.Context) {
 
 	snippet, err := r.s.GetById(id)
 	if err != nil {
-		log.Printf("Error getting snippet by id %s: %v", id, err)
-		// A more specific error check for "not found" would be better,
-		// but for now, this is sufficient.
+		log.Printf("Error getting snippet by id %s: %v", idStr, err)
 		c.String(http.StatusNotFound, "Snippet not found")
 		return
 	}
@@ -62,35 +57,34 @@ func (r *Router) snippetView(c *gin.Context) {
 	})
 }
 
-func (r *Router) snippetCreateForm(c *gin.Context) {
-	// For simplicity, we don't have a dedicated create form page yet.
-	// We can add one later if needed. For now, we'll just show the home page.
-	// Or better, let's create a simple one.
-	c.HTML(http.StatusOK, "create-page.html", nil)
+func (r *Handler) snippetCreateForm(c *gin.Context) {
+	c.HTML(http.StatusOK, "create-page.html", gin.H{
+		"Form": &SnippetCreateForm{},
+	})
 }
 
-func (r *Router) snippetCreate(c *gin.Context) {
-	title := c.PostForm("title")
-	content := c.PostForm("content")
-	expiresStr := c.PostForm("expires")
-
-	if title == "" || content == "" || expiresStr == "" {
-		c.String(http.StatusBadRequest, "Title, content, and expires are required")
+func (r *Handler) snippetCreate(c *gin.Context) {
+	var form SnippetCreateForm
+	if err := c.ShouldBind(&form); err != nil {
+		c.String(http.StatusBadRequest, "Invalid form data")
 		return
 	}
 
-	expires, err := strconv.Atoi(expiresStr)
-	if err != nil {
-		c.String(http.StatusBadRequest, "Invalid expires value, must be a number of days")
+	if !form.IsValid() {
+		c.HTML(http.StatusOK, "create-page.html", gin.H{
+			"Form": form,
+		})
 		return
 	}
 
-	snippet, err := r.s.Create(title, content, expires)
+	expires, _ := strconv.Atoi(form.Expires)
+
+	snippetID, err := r.s.Create(form.Title, form.Content, expires)
 	if err != nil {
 		log.Printf("Error creating snippet: %v", err)
 		c.String(http.StatusInternalServerError, "Internal Server Error")
 		return
 	}
 
-	c.Redirect(http.StatusSeeOther, "/snippet/view?id="+snippet.SnippetID.String())
+	c.Redirect(http.StatusSeeOther, "/snippet?id="+snippetID.String())
 }
