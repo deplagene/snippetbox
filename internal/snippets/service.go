@@ -59,6 +59,7 @@ func (s *Service) GetLatestForUser(userID uuid.UUID) ([]database.Snippet, error)
 	for _, snip := range snippets {
 		result = append(result, database.Snippet{
 			SnippetID: snip.SnippetID,
+			UserID:    pgtype.UUID{Bytes: userID, Valid: true},
 			Title:     snip.Title,
 			Content:   snip.Content,
 		})
@@ -76,6 +77,7 @@ func (s *Service) GetLatest() ([]database.Snippet, error) {
 	for _, snip := range snippets {
 		result = append(result, database.Snippet{
 			SnippetID: snip.SnippetID,
+			UserID:    snip.UserID,
 			Title:     snip.Title,
 			Content:   snip.Content,
 		})

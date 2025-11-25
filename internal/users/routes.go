@@ -1,8 +1,10 @@
 package users
 
 import (
-	"github.com/gin-contrib/sessions"
+	"log"
 	"net/http"
+
+	"github.com/gin-contrib/sessions"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,6 +32,8 @@ func (h *Handler) SignupForm(c *gin.Context) {
 
 func (h *Handler) Signup(c *gin.Context) {
 	var form RegisterForm
+
+	log.Printf("%s", form)
 	if err := c.ShouldBind(&form); err != nil {
 		c.String(http.StatusBadRequest, "Invalid form data")
 		return

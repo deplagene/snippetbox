@@ -10,7 +10,7 @@ VALUES (gen_random_uuid(), $1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + CA
 RETURNING snippet_id;
 
 -- name: GetLatestSnippets :many
-SELECT snippet_id, title, content, created, expires
+SELECT snippet_id, user_id, title, content, created, expires
  	FROM snippets
  	WHERE expires > NOW()
  	ORDER BY created DESC

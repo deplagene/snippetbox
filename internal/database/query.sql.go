@@ -67,7 +67,7 @@ func (q *Queries) DeleteSnippet(ctx context.Context, snippetID uuid.UUID) error 
 }
 
 const getLatestSnippets = `-- name: GetLatestSnippets :many
-SELECT snippet_id, title, content, created, expires
+SELECT snippet_id, user_id, title, content, created, expires
  	FROM snippets
  	WHERE expires > NOW()
  	ORDER BY created DESC
@@ -76,6 +76,7 @@ SELECT snippet_id, title, content, created, expires
 
 type GetLatestSnippetsRow struct {
 	SnippetID uuid.UUID
+	UserID    pgtype.UUID
 	Title     string
 	Content   string
 	Created   pgtype.Timestamp
@@ -93,6 +94,7 @@ func (q *Queries) GetLatestSnippets(ctx context.Context) ([]GetLatestSnippetsRow
 		var i GetLatestSnippetsRow
 		if err := rows.Scan(
 			&i.SnippetID,
+			&i.UserID,
 			&i.Title,
 			&i.Content,
 			&i.Created,
