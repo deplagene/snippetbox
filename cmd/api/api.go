@@ -1,11 +1,15 @@
 package api
 
 import (
-	"deplagene/snippetbox"
-	"deplagene/snippetbox/internal/database"
-	"deplagene/snippetbox/internal/snippets"
 	"io/fs"
 	"net/http"
+
+	"github.com/deplagene/snippetbox"
+	"github.com/deplagene/snippetbox/internal/database"
+	"github.com/deplagene/snippetbox/internal/snippets"
+	"github.com/deplagene/snippetbox/internal/users"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,8 +31,13 @@ func (a *API) Run() error {
 	querier := database.New(a.db)
 	snippetSvc := snippets.NewService(querier)
 	snippetRouter := snippets.NewHandler(snippetSvc)
+	userSvc := users.NewService(querier)
+	userRouter := users.NewHandler(userSvc)
 
 	router := gin.Default()
+
+	store := cookie.NewStore([]byte("secret"))
+	router.Use(sessions.Sessions("mysession", store))
 
 	templates, err := NewTemplateRenderer()
 	if err != nil {
@@ -43,6 +52,7 @@ func (a *API) Run() error {
 	router.StaticFS("/static", http.FS(staticFS))
 
 	snippetRouter.RegisterRoutes(router.Group("/"))
+	userRouter.RegisterRoutes(router.Group("/user"))
 
 	return router.Run(a.Addr)
 }

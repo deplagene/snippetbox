@@ -1,7 +1,7 @@
 package api
 
 import (
-	"deplagene/snippetbox"
+	"github.com/deplagene/snippetbox"
 	"html/template"
 	"io/fs"
 	"path/filepath"

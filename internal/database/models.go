@@ -15,4 +15,12 @@ type Snippet struct {
 	Content   string
 	Created   pgtype.Timestamp
 	Expires   pgtype.Timestamp
+	UserID    pgtype.UUID
+}
+
+type User struct {
+	UserID         uuid.UUID
+	Name           string
+	Email          string
+	HashedPassword []byte
 }

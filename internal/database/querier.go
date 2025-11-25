@@ -8,12 +8,17 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
-	Create(ctx context.Context, arg CreateParams) (uuid.UUID, error)
-	GetById(ctx context.Context, snippetID uuid.UUID) (Snippet, error)
-	GetLatest(ctx context.Context) ([]Snippet, error)
+	CreateSnippet(ctx context.Context, arg CreateSnippetParams) (uuid.UUID, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (uuid.UUID, error)
+	DeleteSnippet(ctx context.Context, snippetID uuid.UUID) error
+	GetLatestSnippets(ctx context.Context) ([]GetLatestSnippetsRow, error)
+	GetLatestSnippetsForUser(ctx context.Context, userID pgtype.UUID) ([]GetLatestSnippetsForUserRow, error)
+	GetSnippetByID(ctx context.Context, snippetID uuid.UUID) (GetSnippetByIDRow, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
 }
 
 var _ Querier = (*Queries)(nil)

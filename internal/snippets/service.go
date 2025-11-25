@@ -2,9 +2,9 @@ package snippets
 
 import (
 	"context"
-	"deplagene/snippetbox/internal/database"
 	"fmt"
 
+	"github.com/deplagene/snippetbox/internal/database"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -17,12 +17,13 @@ func NewService(q database.Querier) *Service {
 	return &Service{q: q}
 }
 
-func (s *Service) Create(title, content string, expiresInDays int) (uuid.UUID, error) {
+func (s *Service) Create(title, content string, userID uuid.UUID, expiresInDays int) (uuid.UUID, error) {
 	const op = "snippets.Service.Create"
 
-	snippetID, err := s.q.Create(context.Background(), database.CreateParams{
+	snippetID, err := s.q.CreateSnippet(context.Background(), database.CreateSnippetParams{
 		Title:   title,
 		Content: content,
+		UserID:  pgtype.UUID{Bytes: userID, Valid: true},
 		ExpiresIn: pgtype.Interval{
 			Microseconds: int64(expiresInDays) * 24 * 60 * 60 * 1_000_000,
 			Valid:        true,
@@ -36,18 +37,58 @@ func (s *Service) Create(title, content string, expiresInDays int) (uuid.UUID, e
 
 func (s *Service) GetById(id uuid.UUID) (database.Snippet, error) {
 	const op = "snippets.Service.GetById"
-	snippet, err := s.q.GetById(context.Background(), id)
+	snippet, err := s.q.GetSnippetByID(context.Background(), id)
 	if err != nil {
 		return database.Snippet{}, fmt.Errorf("%s: %w", op, err)
 	}
-	return snippet, nil
+	return database.Snippet{
+		SnippetID: snippet.SnippetID,
+		UserID:    snippet.UserID,
+		Title:     snippet.Title,
+		Content:   snippet.Content,
+	}, nil
+}
+
+func (s *Service) GetLatestForUser(userID uuid.UUID) ([]database.Snippet, error) {
+	const op = "snippets.Service.GetLatestForUser"
+	snippets, err := s.q.GetLatestSnippetsForUser(context.Background(), pgtype.UUID{Bytes: userID, Valid: true})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", op, err)
+	}
+	var result []database.Snippet
+	for _, snip := range snippets {
+		result = append(result, database.Snippet{
+			SnippetID: snip.SnippetID,
+			Title:     snip.Title,
+			Content:   snip.Content,
+		})
+	}
+	return result, nil
 }
 
 func (s *Service) GetLatest() ([]database.Snippet, error) {
 	const op = "snippets.Service.GetLatest"
-	snippets, err := s.q.GetLatest(context.Background())
+	snippets, err := s.q.GetLatestSnippets(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
-	return snippets, nil
+	var result []database.Snippet
+	for _, snip := range snippets {
+		result = append(result, database.Snippet{
+			SnippetID: snip.SnippetID,
+			Title:     snip.Title,
+			Content:   snip.Content,
+		})
+	}
+	return result, nil
+}
+
+func (s *Service) Delete(id uuid.UUID) error {
+	const op = "snippets.Service.Delete"
+
+	if err := s.q.DeleteSnippet(context.Background(), id); err != nil {
+		return fmt.Errorf("%s: %w", op, err)
+	}
+
+	return nil
 }

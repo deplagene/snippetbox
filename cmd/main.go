@@ -2,11 +2,11 @@ package main
 
 import (
 	"database/sql"
-	"deplagene/snippetbox"
-	"deplagene/snippetbox/cmd/api"
-	"deplagene/snippetbox/cmd/migrate"
-	"deplagene/snippetbox/configs"
-	"deplagene/snippetbox/pkg/postgres"
+	"github.com/deplagene/snippetbox"
+	"github.com/deplagene/snippetbox/cmd/api"
+	"github.com/deplagene/snippetbox/cmd/migrate"
+	"github.com/deplagene/snippetbox/configs"
+	"github.com/deplagene/snippetbox/pkg/postgres"
 	"flag"
 	"log"
 

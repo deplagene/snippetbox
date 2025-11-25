@@ -13,8 +13,14 @@
         <h1><a href="/">Хранилище заметок</a></h1>
     </header>
     <nav>
-        <a href="/">Домашняя страница</a>
-        <a href="/snippet/create">Создать заметку</a>
+        <div>
+            <a href="/">Домашняя страница</a>
+            <a href="/snippet/create">Создать заметку</a>
+        </div>
+        <div>
+            <a href="/user/signup">Регистрация</a>
+            <a href="/user/login">Вход</a>
+        </div>
     </nav>
     <main>
         {{template "main" .}}

@@ -12,46 +12,61 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const create = `-- name: Create :one
-INSERT INTO snippets (snippet_id, title, content, created, expires)
-VALUES (gen_random_uuid(), $1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + CAST($3 AS INTERVAL))
+const createSnippet = `-- name: CreateSnippet :one
+INSERT INTO snippets (snippet_id, title, content, user_id, created, expires)
+VALUES (gen_random_uuid(), $1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + CAST($4 AS INTERVAL))
 RETURNING snippet_id
 `
 
-type CreateParams struct {
+type CreateSnippetParams struct {
 	Title     string
 	Content   string
+	UserID    pgtype.UUID
 	ExpiresIn pgtype.Interval
 }
 
-func (q *Queries) Create(ctx context.Context, arg CreateParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, create, arg.Title, arg.Content, arg.ExpiresIn)
+func (q *Queries) CreateSnippet(ctx context.Context, arg CreateSnippetParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createSnippet,
+		arg.Title,
+		arg.Content,
+		arg.UserID,
+		arg.ExpiresIn,
+	)
 	var snippet_id uuid.UUID
 	err := row.Scan(&snippet_id)
 	return snippet_id, err
 }
 
-const getById = `-- name: GetById :one
-SELECT snippet_id, title, content, created, expires
- 	FROM snippets
- 	WHERE expires > NOW()
- 	AND snippet_id = $1
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (user_id, name, email, hashed_password)
+VALUES (gen_random_uuid(), $1, $2, $3)
+RETURNING user_id
 `
 
-func (q *Queries) GetById(ctx context.Context, snippetID uuid.UUID) (Snippet, error) {
-	row := q.db.QueryRow(ctx, getById, snippetID)
-	var i Snippet
-	err := row.Scan(
-		&i.SnippetID,
-		&i.Title,
-		&i.Content,
-		&i.Created,
-		&i.Expires,
-	)
-	return i, err
+type CreateUserParams struct {
+	Name           string
+	Email          string
+	HashedPassword []byte
 }
 
-const getLatest = `-- name: GetLatest :many
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, createUser, arg.Name, arg.Email, arg.HashedPassword)
+	var user_id uuid.UUID
+	err := row.Scan(&user_id)
+	return user_id, err
+}
+
+const deleteSnippet = `-- name: DeleteSnippet :exec
+DELETE FROM snippets
+WHERE snippet_id = $1
+`
+
+func (q *Queries) DeleteSnippet(ctx context.Context, snippetID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteSnippet, snippetID)
+	return err
+}
+
+const getLatestSnippets = `-- name: GetLatestSnippets :many
 SELECT snippet_id, title, content, created, expires
  	FROM snippets
  	WHERE expires > NOW()
@@ -59,15 +74,23 @@ SELECT snippet_id, title, content, created, expires
  	LIMIT 10
 `
 
-func (q *Queries) GetLatest(ctx context.Context) ([]Snippet, error) {
-	rows, err := q.db.Query(ctx, getLatest)
+type GetLatestSnippetsRow struct {
+	SnippetID uuid.UUID
+	Title     string
+	Content   string
+	Created   pgtype.Timestamp
+	Expires   pgtype.Timestamp
+}
+
+func (q *Queries) GetLatestSnippets(ctx context.Context) ([]GetLatestSnippetsRow, error) {
+	rows, err := q.db.Query(ctx, getLatestSnippets)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Snippet
+	var items []GetLatestSnippetsRow
 	for rows.Next() {
-		var i Snippet
+		var i GetLatestSnippetsRow
 		if err := rows.Scan(
 			&i.SnippetID,
 			&i.Title,
@@ -83,4 +106,94 @@ func (q *Queries) GetLatest(ctx context.Context) ([]Snippet, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getLatestSnippetsForUser = `-- name: GetLatestSnippetsForUser :many
+SELECT snippet_id, title, content, created, expires
+ 	FROM snippets
+ 	WHERE expires > NOW() AND user_id = $1
+ 	ORDER BY created DESC
+ 	LIMIT 10
+`
+
+type GetLatestSnippetsForUserRow struct {
+	SnippetID uuid.UUID
+	Title     string
+	Content   string
+	Created   pgtype.Timestamp
+	Expires   pgtype.Timestamp
+}
+
+func (q *Queries) GetLatestSnippetsForUser(ctx context.Context, userID pgtype.UUID) ([]GetLatestSnippetsForUserRow, error) {
+	rows, err := q.db.Query(ctx, getLatestSnippetsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetLatestSnippetsForUserRow
+	for rows.Next() {
+		var i GetLatestSnippetsForUserRow
+		if err := rows.Scan(
+			&i.SnippetID,
+			&i.Title,
+			&i.Content,
+			&i.Created,
+			&i.Expires,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSnippetByID = `-- name: GetSnippetByID :one
+SELECT snippet_id, user_id, title, content, created, expires
+ 	FROM snippets
+ 	WHERE expires > NOW()
+ 	AND snippet_id = $1
+`
+
+type GetSnippetByIDRow struct {
+	SnippetID uuid.UUID
+	UserID    pgtype.UUID
+	Title     string
+	Content   string
+	Created   pgtype.Timestamp
+	Expires   pgtype.Timestamp
+}
+
+func (q *Queries) GetSnippetByID(ctx context.Context, snippetID uuid.UUID) (GetSnippetByIDRow, error) {
+	row := q.db.QueryRow(ctx, getSnippetByID, snippetID)
+	var i GetSnippetByIDRow
+	err := row.Scan(
+		&i.SnippetID,
+		&i.UserID,
+		&i.Title,
+		&i.Content,
+		&i.Created,
+		&i.Expires,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT user_id, name, email, hashed_password
+FROM users
+WHERE email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.UserID,
+		&i.Name,
+		&i.Email,
+		&i.HashedPassword,
+	)
+	return i, err
 }
